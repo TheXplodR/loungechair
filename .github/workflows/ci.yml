@@ -67,18 +67,20 @@ jobs:
           path: build/outputs/apk/**/*.apk
           retention-days: 14
 
-      # Replaces the "test-build" pre-release so the newest APK is always one tap
-      # away on the repository's Releases page.
-      - name: Publish APK on the test-build release
+      # Every build gets its own pre-release ("Test build N") with the APK attached, so it is
+      # one tap away on the repository's Releases page. Only the newest five are kept.
+      - name: Publish APK as a test build release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           apk=$(find build/outputs/apk -name '*.apk' | head -n 1)
           name="Loungechair-test-${{ github.run_number }}-${GITHUB_SHA::7}.apk"
           cp "$apk" "$name"
-          gh release delete test-build --yes --cleanup-tag || true
-          gh release create test-build "$name" \
+          gh release create "test-build-${{ github.run_number }}" "$name" \
             --prerelease \
             --target "$GITHUB_SHA" \
             --title "Test build ${{ github.run_number }}" \
-            --notes "Built from ${{ github.ref_name }} at ${GITHUB_SHA::7}. Install the .apk below on your phone."
+            --notes "Built from ${{ github.ref_name }} at ${GITHUB_SHA::7}: $(git log -1 --format=%s)"
+          gh release list --limit 100 --json tagName --jq '.[].tagName' \
+            | grep '^test-build-' | tail -n +6 \
+            | xargs -r -n 1 gh release delete --yes --cleanup-tag
