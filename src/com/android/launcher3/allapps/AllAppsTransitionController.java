@@ -57,6 +57,7 @@ import com.android.launcher3.anim.AnimatedFloat;
 import com.android.launcher3.anim.PendingAnimation;
 import com.android.launcher3.anim.PropertySetter;
 import com.android.launcher3.config.FeatureFlags;
+import com.android.launcher3.loungechair.Loungechair;
 import com.android.launcher3.statemanager.StateManager.StateHandler;
 import com.android.launcher3.states.StateAnimationConfig;
 import com.android.launcher3.touch.AllAppsSwipeController;
@@ -241,9 +242,18 @@ public class AllAppsTransitionController
     public void setProgress(float progress) {
         mProgress = progress;
         boolean fromBackground = mLauncher.getStateManager().getCurrentStableState() == BACKGROUND_APP;
-        // Allow apps panel to shift the full screen if coming from another app.
-        float shiftRange = fromBackground ? mLauncher.getDeviceProfile().heightPx : mShiftRange;
-        getAppsViewProgressTranslationY().setValue(mProgress * shiftRange);
+        DeviceProfile dp = mLauncher.getDeviceProfile();
+        if (Loungechair.isHorizontalAllApps(dp)) {
+            // Loungechair: the app list sits beside the home screen and slides in sideways,
+            // moving in step with the home screen (see AllAppsState).
+            getAppsViewProgressTranslationY().setValue(0);
+            mAppsView.setTranslationX(
+                    -Loungechair.getHomeShiftForAllApps(mLauncher, dp) * mProgress);
+        } else {
+            // Allow apps panel to shift the full screen if coming from another app.
+            float shiftRange = fromBackground ? dp.heightPx : mShiftRange;
+            getAppsViewProgressTranslationY().setValue(mProgress * shiftRange);
+        }
         mLauncher.onAllAppsTransition(1 - progress);
 
         boolean hasScrim = progress < NAV_BAR_COLOR_FORCE_UPDATE_THRESHOLD

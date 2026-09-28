@@ -61,6 +61,7 @@ import com.android.launcher3.anim.PropertySetter;
 import com.android.launcher3.anim.SpringAnimationBuilder;
 import com.android.launcher3.graphics.Scrim;
 import com.android.launcher3.graphics.SysUiScrim;
+import com.android.launcher3.loungechair.Loungechair;
 import com.android.launcher3.states.EditModeState;
 import com.android.launcher3.states.SpringLoadedState;
 import com.android.launcher3.states.StateAnimationConfig;
@@ -187,6 +188,14 @@ public class WorkspaceStateTransitionAnimation {
 
         Interpolator hotseatTranslationInterpolator = config.getInterpolator(
                 ANIM_HOTSEAT_TRANSLATE, translationInterpolator);
+        if (Loungechair.isHorizontalAllApps(mLauncher.getDeviceProfile())) {
+            // Loungechair: the dock and page dots move sideways together with the home screen
+            // when the app list slides in.
+            propertySetter.setFloat(hotseat, VIEW_TRANSLATE_X,
+                    hotseatScaleAndTranslation.translationX, hotseatTranslationInterpolator);
+            propertySetter.setFloat(mWorkspace.getPageIndicator(), VIEW_TRANSLATE_X,
+                    scaleAndTranslation.translationX, translationInterpolator);
+        }
         propertySetter.setFloat(hotseat, VIEW_TRANSLATE_Y,
                 hotseatScaleAndTranslation.translationY, hotseatTranslationInterpolator);
         propertySetter.setFloat(mWorkspace.getPageIndicator(), VIEW_TRANSLATE_Y,

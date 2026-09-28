@@ -27,6 +27,7 @@ import com.android.launcher3.Launcher;
 import com.android.launcher3.LauncherState;
 import com.android.launcher3.R;
 import com.android.launcher3.config.FeatureFlags;
+import com.android.launcher3.loungechair.Loungechair;
 import com.android.launcher3.util.Themes;
 import com.android.launcher3.views.ActivityContext;
 import com.android.quickstep.util.BaseDepthController;
@@ -116,13 +117,21 @@ public class AllAppsState extends LauncherState {
 
     @Override
     public ScaleAndTranslation getWorkspaceScaleAndTranslation(Launcher launcher) {
-        return new ScaleAndTranslation(launcher.getDeviceProfile().workspaceContentScale, NO_OFFSET,
-                NO_OFFSET);
+        DeviceProfile dp = launcher.getDeviceProfile();
+        if (Loungechair.isHorizontalAllApps(dp)) {
+            // Loungechair: the home screen moves aside, one screen width, as the list slides in.
+            return new ScaleAndTranslation(1f,
+                    Loungechair.getHomeShiftForAllApps(launcher, dp), NO_OFFSET);
+        }
+        return new ScaleAndTranslation(dp.workspaceContentScale, NO_OFFSET, NO_OFFSET);
     }
 
     @Override
     public ScaleAndTranslation getHotseatScaleAndTranslation(Launcher launcher) {
         if (launcher.getDeviceProfile().isTablet) {
+            return getWorkspaceScaleAndTranslation(launcher);
+        } else if (Loungechair.isHorizontalAllApps(launcher.getDeviceProfile())) {
+            // Loungechair: the dock moves aside together with the home screen.
             return getWorkspaceScaleAndTranslation(launcher);
         } else {
             ScaleAndTranslation overviewScaleAndTranslation = LauncherState.OVERVIEW

@@ -216,7 +216,7 @@ public abstract class AbstractStateChangeTouchController
                     mFlingBlockCheck.blockFling();
                 }
             }
-            if (mFromState == LauncherState.ALL_APPS) {
+            if (mFromState == LauncherState.ALL_APPS && useVerticalAllAppsOverscroll()) {
                 mAllAppsOvershootStarted = true;
                 mLauncher.getAppsView().onPull(-progress , -progress);
             }
@@ -227,7 +227,7 @@ public abstract class AbstractStateChangeTouchController
                     mFlingBlockCheck.blockFling();
                 }
             }
-            if (mToState == LauncherState.ALL_APPS) {
+            if (mToState == LauncherState.ALL_APPS && useVerticalAllAppsOverscroll()) {
                 mAllAppsOvershootStarted = true;
                 // 1f, value when all apps container hit the top
                 mLauncher.getAppsView().onPull(progress - 1f, progress - 1f);
@@ -362,7 +362,7 @@ public abstract class AbstractStateChangeTouchController
         anim.setFloatValues(startProgress, endProgress);
         updateSwipeCompleteAnimation(anim, duration, targetState, velocity, fling);
         mCurrentAnimation.dispatchOnStart();
-        if (targetState == LauncherState.ALL_APPS) {
+        if (targetState == LauncherState.ALL_APPS && useVerticalAllAppsOverscroll()) {
             if (mAllAppsOvershootStarted) {
                 mLauncher.getAppsView().onRelease();
                 mAllAppsOvershootStarted = false;
@@ -371,6 +371,14 @@ public abstract class AbstractStateChangeTouchController
             }
         }
         anim.start();
+    }
+
+    /**
+     * Whether dragging past either end of the all apps transition stretches the app list
+     * vertically, the stock bottom-sheet effect. Sideways swipes (Loungechair) opt out.
+     */
+    protected boolean useVerticalAllAppsOverscroll() {
+        return true;
     }
 
     protected void updateSwipeCompleteAnimation(ValueAnimator animator, long expectedDuration,
