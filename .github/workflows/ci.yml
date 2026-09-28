@@ -1,4 +1,4 @@
-name: CI
+name: Build test APK
 
 on:
   push:
@@ -7,154 +7,78 @@ on:
     paths-ignore:
       - '.idea/**'
       - '.gitattributes'
-      - '.github/**.json'
       - '.gitignore'
-      - '.gitmodules'
-      - '**.md'
-      - 'LICENSE'
-      - 'NOTICE'
-  pull_request:
-    paths-ignore:
-      - '.idea/**'
-      - '.gitattributes'
-      - '.github/**.json'
-      - '.gitignore'
-      - '.gitmodules'
       - '**.md'
       - 'LICENSE'
       - 'NOTICE'
   workflow_dispatch:
-  workflow_call:
+
+# A newer push to the same branch cancels the build that is still running.
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  build-debug-apk:
-    strategy:
-      matrix:
-        build-variant: [ assembleLawnWithQuickstepNightlyRelease, assembleLawnWithQuickstepGithubDebug, assembleLawnWithQuickstepPlayDebug ]
+  build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write # needed to publish the APK on the "test-build" release
     steps:
       - uses: actions/checkout@v6
         with:
           submodules: true
+
       - uses: actions/setup-java@v5
         with:
           distribution: 'zulu'
           java-version: 21
+
       - uses: gradle/actions/setup-gradle@v5
-        with:
-          cache-encryption-key: Da25KUVSE5jbGds2zXmfXw==
-      - name: Write sign info
-        if: github.repository_owner == 'LawnchairLauncher'
+
+      # Every build must be signed with the same key, otherwise Android refuses to
+      # install a new build over the previous one. The key lives in the KEYSTORE
+      # repository secret (base64 of a PKCS12 keystore), never in the code.
+      - name: Write signing info
+        env:
+          KEYSTORE: ${{ secrets.KEYSTORE }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD || 'loungechair' }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS || 'loungechair' }}
         run: |
-          if [ ! -z "${{ secrets.KEYSTORE }}" ]; then
-            echo storePassword='${{ secrets.KEYSTORE_PASSWORD }}' >> keystore.properties
-            echo keyAlias='${{ secrets.KEY_ALIAS }}' >> keystore.properties
-            echo keyPassword='${{ secrets.KEY_PASSWORD }}' >> keystore.properties
-            echo storeFile='${{ github.workspace }}/key.jks' >> keystore.properties
-            echo ${{ secrets.KEYSTORE }} | base64 --decode > ${{ github.workspace }}/key.jks
+          if [ -n "$KEYSTORE" ]; then
+            echo "$KEYSTORE" | base64 --decode > "$RUNNER_TEMP/key.p12"
+            {
+              echo "storeFile=$RUNNER_TEMP/key.p12"
+              echo "storePassword=$KEYSTORE_PASSWORD"
+              echo "keyAlias=$KEY_ALIAS"
+              echo "keyPassword=$KEYSTORE_PASSWORD"
+            } > keystore.properties
+            echo "Signing with the key from the KEYSTORE secret."
+          else
+            echo "::warning::No KEYSTORE secret is set, so this build uses a throwaway key and cannot be installed as an update over an earlier build."
           fi
+
       - name: Build APK
-        run: ./gradlew ${{ matrix.build-variant }}
-      - name: Upload artifact
+        run: ./gradlew assembleLawnWithQuickstepGithubDebug
+
+      - name: Upload APK as a workflow artifact
         uses: actions/upload-artifact@v6
         with:
-          name: ${{ matrix.build-variant }}
+          name: test-apk
           path: build/outputs/apk/**/*.apk
+          retention-days: 14
 
-  check-style:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          submodules: true
-      - uses: actions/setup-java@v5
-        with:
-          distribution: 'zulu'
-          java-version: 21
-      - uses: gradle/actions/setup-gradle@v5
-      - run: ./gradlew spotlessCheck
-
-  send-notifications:
-    runs-on: ubuntu-latest
-    if: github.repository_owner == 'LawnchairLauncher'
-    needs: build-debug-apk
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          submodules: true
-          fetch-depth: 0
-      - uses: actions/setup-python@v6
-        with:
-          python-version: '3.x'
-      - name: Install Python packages
-        run: |
-          python -m pip install --upgrade pip
-          pip install gitpython requests
-      - name: Download artifact
-        uses: actions/download-artifact@v7
-        with:
-          pattern: assembleLawnWith*
-          merge-multiple: true
-          path: artifacts/debug-apk
-      - name: Send notifications
-        run: python ci.py
+      # Replaces the "test-build" pre-release so the newest APK is always one tap
+      # away on the repository's Releases page.
+      - name: Publish APK on the test-build release
         env:
-          GITHUB_EVENT_BEFORE: ${{ github.event.before }}
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_CI_BOT_TOKEN }}
-          TELEGRAM_CI_CHANNEL_ID: ${{ secrets.TELEGRAM_CI_CHANNEL_ID }}
-          TELEGRAM_TEAM_GROUP_ID: ${{ secrets.NOTIFY_CHANNEL_ID }}
-          ARTIFACT_DIRECTORY: artifacts/debug-apk
-          GITHUB_REF: ${{ github.ref }}
-          ACTION: internal_notifications
-
-  crowdin-auto-merge:
-    runs-on: ubuntu-latest
-    if: github.event.pull_request.user.login == 'lawnchair-bot' && github.event.pull_request.title == 'New Crowdin translations by Github Action'
-    needs: build-debug-apk
-    steps:
-      - env:
-          GH_TOKEN: ${{ secrets.LAWNCHAIR_BOT_TOKEN }}
-          PR_URL: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ github.token }}
         run: |
-          gh pr comment $PR_URL --body "No issues found, auto-merging the Crowdin pull request."
-          gh pr merge $PR_URL --auto --squash --delete-branch
-
-  # Status check that is required in branch protection rules.
-  final-status:
-    needs:
-      - build-debug-apk
-      - check-style
-    runs-on: ubuntu-slim
-    if: always()
-    steps:
-      - name: Check
-        run: |
-          results=$(tr -d '\n' <<< '${{ toJSON(needs.*.result) }}')
-          if ! grep -q -v -E '(failure|cancelled)' <<< "$results"; then
-            echo "One or more required jobs failed"
-            exit 1
-          fi
-          echo "All required jobs completed successfully."
-
-  nightly-release:
-    runs-on: ubuntu-latest
-    if: github.repository_owner == 'LawnchairLauncher' && github.event_name == 'push' && github.ref == 'refs/heads/15-dev'
-    needs: final-status
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/checkout@v6
-      - uses: actions/download-artifact@v7
-        with:
-          name: assembleLawnWithQuickstepNightlyRelease
-      # Note the # and () symbols are not supported in GitHub Release filenames, even manually
-      - name: Export APK_NAME for later use
-        run: echo "APK_NAME=Lawnchair.Debug.${{ github.ref_name }}.Nightly-CI_${{ github.run_number }}-$(echo ${{ github.sha }} | cut -c1-7).apk" >> $GITHUB_ENV
-      - name: Rename .apk file
-        run: mv "./lawnWithQuickstepNightly/release/"*.apk "./$APK_NAME"
-      - name: Delete release if exist then create release
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          gh release view "nightly" && gh release delete "nightly" -y --cleanup-tag
-          gh release create "nightly" "./$APK_NAME" -p -t "Lawnchair Nightly" --generate-notes
+          apk=$(find build/outputs/apk -name '*.apk' | head -n 1)
+          name="Loungechair-test-${{ github.run_number }}-${GITHUB_SHA::7}.apk"
+          cp "$apk" "$name"
+          gh release delete test-build --yes --cleanup-tag || true
+          gh release create test-build "$name" \
+            --prerelease \
+            --target "$GITHUB_SHA" \
+            --title "Test build ${{ github.run_number }}" \
+            --notes "Built from ${{ github.ref_name }} at ${GITHUB_SHA::7}. Install the .apk below on your phone."
