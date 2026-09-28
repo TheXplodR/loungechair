@@ -63,6 +63,10 @@ object ColorTokens {
 
     @JvmField val ColorAccent = DayNightColorToken(Accent1_600, Accent1_100)
 
+    // Loungechair: letter tiles in the app list. A strong accent in both light and dark mode,
+    // so their white letters stay readable, like the Windows Phone accent colour.
+    @JvmField val LoungechairSectionTile = DayNightColorToken(Accent1_600, Accent1_600)
+
     @JvmField val ColorBackground = DayNightColorToken(Neutral1_50, Neutral1_900)
 
     @JvmField val ColorBackgroundFloating = DayNightColorToken(Neutral2_50, Neutral2_900)

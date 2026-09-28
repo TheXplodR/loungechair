@@ -247,8 +247,12 @@ public class AllAppsTransitionController
             // Loungechair: the app list sits beside the home screen and slides in sideways,
             // moving in step with the home screen (see AllAppsState).
             getAppsViewProgressTranslationY().setValue(0);
-            mAppsView.setTranslationX(
-                    -Loungechair.getHomeShiftForAllApps(mLauncher, dp) * mProgress);
+            float translationX = -Loungechair.getHomeShiftForAllApps(mLauncher, dp) * mProgress;
+            mAppsView.setTranslationX(translationX);
+            // The scrim is the list's background: it slides along, so the list arrives as a
+            // solid panel instead of the whole screen dimming. Once the list is fully hidden
+            // the scrim goes back in place for the other states that use it.
+            mScrimView.setTranslationX(mProgress < 1 ? translationX : 0);
         } else {
             // Allow apps panel to shift the full screen if coming from another app.
             float shiftRange = fromBackground ? dp.heightPx : mShiftRange;

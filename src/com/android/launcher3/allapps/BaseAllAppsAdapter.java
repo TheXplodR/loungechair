@@ -46,6 +46,7 @@ import com.android.launcher3.R;
 import com.android.launcher3.allapps.search.SearchAdapterProvider;
 import com.android.launcher3.config.FeatureFlags;
 import com.android.launcher3.folder.FolderIcon;
+import com.android.launcher3.loungechair.Loungechair;
 import com.android.launcher3.model.data.AppInfo;
 import com.android.launcher3.model.data.FolderInfo;
 import com.android.launcher3.util.Themes;
@@ -78,6 +79,10 @@ public abstract class BaseAllAppsAdapter<T extends Context & ActivityContext> ex
     public static final int VIEW_TYPE_WORK_EDU_CARD = 1 << 8;
 
     public static final int VIEW_TYPE_FOLDER = 1 << 9;
+
+    // Loungechair: the letter tile that starts each section of the app list. Chosen well above
+    // the view types Lawnchair's search results use (1 << 10 to 1 << 22).
+    public static final int VIEW_TYPE_SECTION_HEADER = 1 << 24;
 
     public static final int NEXT_ID = 10;
 
@@ -152,6 +157,13 @@ public abstract class BaseAllAppsAdapter<T extends Context & ActivityContext> ex
             return item;
         }
 
+        /**
+         * Factory method for the letter tile that starts a section of the app list (Loungechair).
+         */
+        public static AdapterItem asSectionHeader(String sectionName) {
+            return new SectionHeaderItem(sectionName);
+        }
+
         protected boolean isCountedForAccessibility() {
             return viewType == VIEW_TYPE_ICON || viewType == VIEW_TYPE_FOLDER;
         }
@@ -183,6 +195,28 @@ public abstract class BaseAllAppsAdapter<T extends Context & ActivityContext> ex
                 return;
             }
             decorationInfo.getDecorationHandler().setFillAlpha(alpha);
+        }
+    }
+
+    /** Loungechair: the letter tile that starts a section of the app list. */
+    public static class SectionHeaderItem extends AdapterItem {
+
+        public final String sectionName;
+
+        public SectionHeaderItem(String sectionName) {
+            super(VIEW_TYPE_SECTION_HEADER);
+            this.sectionName = sectionName;
+        }
+
+        @Override
+        public boolean isSameAs(AdapterItem other) {
+            return other instanceof SectionHeaderItem
+                    && ((SectionHeaderItem) other).sectionName.equals(sectionName);
+        }
+
+        @Override
+        public boolean isContentSame(AdapterItem other) {
+            return isSameAs(other);
         }
     }
 
@@ -244,6 +278,18 @@ public abstract class BaseAllAppsAdapter<T extends Context & ActivityContext> ex
     public ViewHolder onCreateViewHolder(ViewGroup parent, int viewType) {
         switch (viewType) {
             case VIEW_TYPE_ICON:
+                if (mAppsPerRow == 1
+                        && Loungechair.isAllAppsList(mActivityContext.getDeviceProfile())) {
+                    // Loungechair: one app per row, icon at the start and name beside it.
+                    BubbleTextView row = (BubbleTextView) mLayoutInflater.inflate(
+                            R.layout.loungechair_all_apps_row, parent, false);
+                    Loungechair.styleAllAppsRow(row);
+                    row.setLongPressTimeoutFactor(1f);
+                    row.setOnFocusChangeListener(mIconFocusListener);
+                    row.setOnClickListener(mOnIconClickListener);
+                    row.setOnLongClickListener(mOnIconLongClickListener);
+                    return new ViewHolder(row);
+                }
                 int layout = !FeatureFlags.twoLineAllApps(parent.getContext()) ? R.layout.all_apps_icon
                         : R.layout.all_apps_icon_twoline;
                 BubbleTextView icon = (BubbleTextView) mLayoutInflater.inflate(
@@ -270,6 +316,9 @@ public abstract class BaseAllAppsAdapter<T extends Context & ActivityContext> ex
             case VIEW_TYPE_PRIVATE_SPACE_HEADER:
                 return new ViewHolder(mLayoutInflater.inflate(
                         R.layout.private_space_header, parent, false));
+            case VIEW_TYPE_SECTION_HEADER:
+                return new ViewHolder(mLayoutInflater.inflate(
+                        R.layout.loungechair_all_apps_section_header, parent, false));
             case VIEW_TYPE_FOLDER:
                 FrameLayout fl = new FrameLayout(mActivityContext);
                 ViewGroup.MarginLayoutParams lp = new ViewGroup.MarginLayoutParams(
@@ -351,6 +400,10 @@ public abstract class BaseAllAppsAdapter<T extends Context & ActivityContext> ex
                 break;
             case VIEW_TYPE_WORK_EDU_CARD:
                 ((WorkEduCard) holder.itemView).setPosition(position);
+                break;
+            case VIEW_TYPE_SECTION_HEADER:
+                Loungechair.bindSectionHeader(holder.itemView,
+                        ((SectionHeaderItem) mApps.getAdapterItems().get(position)).sectionName);
                 break;
             case VIEW_TYPE_FOLDER:
                 FolderInfo folderInfo = mApps.getAdapterItems().get(position).folderInfo;

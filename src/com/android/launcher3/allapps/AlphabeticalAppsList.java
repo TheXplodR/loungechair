@@ -35,6 +35,7 @@ import androidx.recyclerview.widget.DiffUtil;
 import com.android.launcher3.Flags;
 import com.android.launcher3.R;
 import com.android.launcher3.allapps.BaseAllAppsAdapter.AdapterItem;
+import com.android.launcher3.loungechair.Loungechair;
 import com.android.launcher3.model.data.AppInfo;
 import com.android.launcher3.model.data.ItemInfo;
 import com.android.launcher3.util.LabelComparator;
@@ -407,8 +408,19 @@ public class AlphabeticalAppsList<T extends Context & ActivityContext> implement
             hasPrivateApps = appList.stream().
                     allMatch(mPrivateProviderManager.getItemInfoMatcher());
         }
+        // Loungechair: in the one-column list, a letter tile starts every section.
+        boolean addSectionHeaders = !hasPrivateApps && mNumAppsPerRowAllApps == 1
+                && Loungechair.isAllAppsList(mActivityContext.getDeviceProfile());
         for (int i = 0; i < appList.size(); i++) {
             AppInfo info = appList.get(i);
+            String sectionName = info.sectionName;
+            boolean startsSection = !sectionName.equals(lastSectionName);
+            if (startsSection && addSectionHeaders) {
+                lastSectionName = sectionName;
+                mAdapterItems.add(AdapterItem.asSectionHeader(sectionName));
+                mFastScrollerSections.add(new FastScrollSectionInfo(sectionName, position));
+                position++;
+            }
             // Apply decorator to private apps.
             if (hasPrivateApps) {
                 mAdapterItems.add(AdapterItem.asAppWithDecorationInfo(info,
@@ -419,9 +431,8 @@ public class AlphabeticalAppsList<T extends Context & ActivityContext> implement
                 mAdapterItems.add(AdapterItem.asApp(info));
             }
 
-            String sectionName = info.sectionName;
             // Create a new section if the section names do not match
-            if (!sectionName.equals(lastSectionName)) {
+            if (startsSection && !addSectionHeaders) {
                 lastSectionName = sectionName;
                 mFastScrollerSections.add(new FastScrollSectionInfo(hasPrivateApps ?
                         mPrivateProfileAppScrollerBadge : sectionName, position));

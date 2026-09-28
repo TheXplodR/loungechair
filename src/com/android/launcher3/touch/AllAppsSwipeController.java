@@ -290,7 +290,8 @@ public class AllAppsSwipeController extends AbstractStateChangeTouchController {
      * Loungechair: the home screen and the app list slide sideways together, like two pages.
      * Everything moves in step with the swipe, and nothing visibly fades while sliding: the
      * side that is leaving stays fully drawn until it is off screen, and the side that is
-     * arriving is fully drawn from the first frame.
+     * arriving (including the scrim, which slides along as the list's background) is fully
+     * drawn from the first frame.
      */
     private static void applyHorizontalAllAppsConfig(StateAnimationConfig config, boolean opening) {
         Interpolator slide = config.isUserControlled() ? LINEAR : EMPHASIZED_DECELERATE;
@@ -299,11 +300,11 @@ public class AllAppsSwipeController extends AbstractStateChangeTouchController {
         config.setInterpolator(ANIM_HOTSEAT_TRANSLATE, slide);
         config.setInterpolator(ANIM_WORKSPACE_SCALE, slide);
         config.setInterpolator(ANIM_HOTSEAT_SCALE, slide);
-        config.setInterpolator(ANIM_SCRIM_FADE, slide);
         config.setInterpolator(ANIM_DEPTH, slide);
         config.setInterpolator(ANIM_WORKSPACE_FADE, opening ? FINAL_FRAME : INSTANT);
         config.setInterpolator(ANIM_HOTSEAT_FADE, opening ? FINAL_FRAME : INSTANT);
         config.setInterpolator(ANIM_ALL_APPS_FADE, opening ? INSTANT : FINAL_FRAME);
+        config.setInterpolator(ANIM_SCRIM_FADE, opening ? INSTANT : FINAL_FRAME);
     }
 
     /**

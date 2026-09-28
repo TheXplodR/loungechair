@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+     Copyright (C) 2026 The Loungechair Authors
+
+     Licensed under the Apache License, Version 2.0 (the "License");
+     you may not use this file except in compliance with the License.
+     You may obtain a copy of the License at
+
+          http://www.apache.org/licenses/LICENSE-2.0
+
+     Unless required by applicable law or agreed to in writing, software
+     distributed under the License is distributed on an "AS IS" BASIS,
+     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+     See the License for the specific language governing permissions and
+     limitations under the License.
+-->
+<!-- The letter tile that starts each section of Loungechair's app list. It lines up with the
+     app icons below it; its colour is set in code from the accent colour. -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="@dimen/loungechair_all_apps_row_height"
+    android:paddingStart="@dimen/loungechair_all_apps_row_padding"
+    android:paddingEnd="@dimen/loungechair_all_apps_row_padding"
+    android:importantForAccessibility="noHideDescendants">
+
+    <TextView
+        android:id="@+id/loungechair_section_letter"
+        android:layout_width="@dimen/loungechair_all_apps_row_icon_size"
+        android:layout_height="@dimen/loungechair_all_apps_row_icon_size"
+        android:layout_gravity="start|center_vertical"
+        android:gravity="start|bottom"
+        android:includeFontPadding="false"
+        android:paddingStart="@dimen/loungechair_all_apps_section_letter_inset"
+        android:paddingBottom="@dimen/loungechair_all_apps_section_letter_inset"
+        android:singleLine="true"
+        android:textColor="@android:color/white"
+        android:textSize="@dimen/loungechair_all_apps_section_letter_size" />
+</FrameLayout>

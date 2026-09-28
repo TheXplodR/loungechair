@@ -83,6 +83,7 @@ import com.android.launcher3.allapps.search.SearchAdapterProvider;
 import com.android.launcher3.config.FeatureFlags;
 import com.android.launcher3.keyboard.FocusedItemDecorator;
 import com.android.launcher3.keyboard.ViewGroupFocusHelper;
+import com.android.launcher3.loungechair.Loungechair;
 import com.android.launcher3.model.StringCache;
 import com.android.launcher3.model.data.ItemInfo;
 import com.android.launcher3.pm.UserCache;
@@ -1060,8 +1061,7 @@ public class ActivityAllAppsContainerView<T extends Context & ActivityContext>
     @Override
     public void onDeviceProfileChanged(DeviceProfile dp) {
         for (AdapterHolder holder : mAH) {
-            holder.mAdapter.setAppsPerRow(dp.numShownAllAppsColumns);
-            holder.mAppsList.setNumAppsPerRowAllApps(dp.numShownAllAppsColumns);
+            holder.applyColumns(dp);
             if (holder.mRecyclerView != null) {
                 // Remove all views and clear the pool, while keeping the data same. After this
                 // call, all the viewHolders will be recreated.
@@ -1639,6 +1639,19 @@ public class ActivityAllAppsContainerView<T extends Context & ActivityContext>
             mAdapter = createAdapter(mAppsList);
             mAppsList.setAdapter(mAdapter);
             mLayoutManager = mAdapter.getLayoutManager();
+            applyColumns(mActivityContext.getDeviceProfile());
+        }
+
+        /**
+         * Loungechair: the A-Z and work lists can be a one-column list, while search results
+         * keep the icon grid.
+         */
+        void applyColumns(DeviceProfile dp) {
+            int columns = isSearch()
+                    ? dp.numShownAllAppsColumns
+                    : Loungechair.getAllAppsColumns(dp);
+            mAdapter.setAppsPerRow(columns);
+            mAppsList.setNumAppsPerRowAllApps(columns);
         }
 
         void setup(@NonNull View rv, @Nullable Predicate<ItemInfo> matcher) {
