@@ -282,7 +282,7 @@ class LawnchairLauncher : QuickstepLauncher() {
         val controllers = super.createTouchControllers().toMutableList()
         // Loungechair: the sideways app list swipe goes right after the drag controller, so an
         // icon that is being dragged is never mistaken for a swipe.
-        val dragControllerIndex = controllers.indexOfFirst { it is DragController }
+        val dragControllerIndex = controllers.indexOfFirst { it is DragController<*> }
         controllers.add(dragControllerIndex + 1, HorizontalAllAppsSwipeController(this))
         return arrayOf<TouchController>(verticalSwipeController) + controllers
     }
